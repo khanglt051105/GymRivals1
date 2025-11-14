@@ -1,9 +1,11 @@
 package com.cs407.cs407project.ui.repcounter
 
 import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,24 +59,32 @@ fun RepCounterScreen(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         viewModel.setCameraPermission(isGranted)
-    }
-
-    // Request camera permission on first launch
-    LaunchedEffect(Unit) {
-        permissionLauncher.launch(Manifest.permission.CAMERA)
-    }
-
-    // Camera preview view
-    val previewView = remember {
-        PreviewView(context).apply {
-            scaleType = PreviewView.ScaleType.FILL_CENTER
+        if (isGranted) {
+            // Initialize camera after permission is granted
+            viewModel.initializeCamera(lifecycleOwner, previewView)
         }
     }
 
-    // Initialize camera once permission is granted
-    LaunchedEffect(state.permissionGranted) {
-        if (state.permissionGranted) {
+    // Camera preview view - must be created before checking permissions
+    val previewView = remember {
+        PreviewView(context).apply {
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        }
+    }
+
+    // Check and request camera permission on first launch
+    LaunchedEffect(Unit) {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            viewModel.setCameraPermission(true)
             viewModel.initializeCamera(lifecycleOwner, previewView)
+        } else {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 

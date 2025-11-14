@@ -161,21 +161,40 @@ class RepCounterViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
 
-                // Select front camera
-                val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+                // Try to select front camera first, fall back to back camera if not available
+                var cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+                var camera: androidx.camera.core.Camera? = null
 
                 // Unbind all use cases before rebinding
                 cameraProvider?.unbindAll()
 
-                // Bind use cases to camera
-                cameraProvider?.bindToLifecycle(
-                    lifecycleOwner,
-                    cameraSelector,
-                    preview,
-                    imageAnalysis
-                )
-
-                Log.d(TAG, "Camera initialized successfully")
+                try {
+                    // Try front camera
+                    camera = cameraProvider?.bindToLifecycle(
+                        lifecycleOwner,
+                        cameraSelector,
+                        preview,
+                        imageAnalysis
+                    )
+                    Log.d(TAG, "Front camera initialized successfully")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Front camera not available, trying back camera", e)
+                    // Try back camera as fallback
+                    cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                    try {
+                        cameraProvider?.unbindAll()
+                        camera = cameraProvider?.bindToLifecycle(
+                            lifecycleOwner,
+                            cameraSelector,
+                            preview,
+                            imageAnalysis
+                        )
+                        Log.d(TAG, "Back camera initialized successfully")
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "Both cameras failed", e2)
+                        throw e2
+                    }
+                }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Camera initialization failed", e)
